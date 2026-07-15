@@ -1,0 +1,16 @@
+[package]
+name = "v10_compare_attention"
+version = "0.1.0"
+edition = "2021"
+description = "V10: SPMA vs MiniLM-L6-v2 semantic embeddings (ONNX)"
+
+[[bin]]
+name = "v10_compare_attention"
+path = "src/main.rs"
+
+[dependencies]
+spma = { path = "../../sp71_rust" }
+anyhow = "1.0"
+ort = { version = "2.0.0-rc.12", features = ["download-binaries"] }
+tokenizers = "0.20"
+ndarray = "0.16"

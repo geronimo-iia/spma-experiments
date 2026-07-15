@@ -1,0 +1,13 @@
+[package]
+name = "v9_compare_attention"
+version = "0.1.0"
+edition = "2021"
+description = "V9: SPMA vs random embeddings (null baseline)"
+
+[[bin]]
+name = "v9_compare_attention"
+path = "src/main.rs"
+
+[dependencies]
+spma = { path = "../../sp71_rust" }
+anyhow = "1.0"
