@@ -33,17 +33,21 @@ curl -L \
 Verified: 2001 lines (1 header + 2000 rows), 1994 unique blocks, 14 event
 templates (E1–E14), avg sequence length 1.0. Use only to verify parse.py works.
 
-### Full dataset (request required)
+### Full dataset (direct download, no request)
 
-The full `HDFS.log` (~1.5 GB) requires a request via the LogHub Google Form
-linked in the repo README. Once granted, you receive:
+Hosted on Zenodo — public, no login required:
 
+```bash
+cd data
+curl -L "https://zenodo.org/records/8196385/files/HDFS_v1.zip?download=1" -o HDFS_v1.zip
+unzip HDFS_v1.zip
 ```
-HDFS.log_structured.csv   — ~11M lines, pre-parsed, EventId column present
-anomaly_label.csv          — BlockId,Label  (Normal / Anomaly)
-```
 
-Place both in `hdfs-validation/data/` (gitignored).
+The ZIP contains `HDFS.log`, `HDFS.log_structured.csv`, `anomaly_label.csv`
+and preprocessed variants. Only `HDFS.log_structured.csv` and
+`anomaly_label.csv` are needed for this pipeline.
+
+Place unzipped files in `hdfs-validation/data/` (gitignored).
 
 Full dataset stats:
 - 11,175,629 log lines
@@ -111,28 +115,6 @@ blk_-6670958622368987959  E10
 
 ## Step 1 — Parse: structured CSV → block sequences
 
-Script: `parse.py`
-
-```python
-import csv
-import re
-import sys
-from collections import defaultdict
-
-BLK_RE = re.compile(r"(blk_-?\d+)")
-sequences = defaultdict(list)
-
-with open(sys.argv[1], newline="") as f:
-    for row in csv.DictReader(f):
-        m = BLK_RE.search(row["Content"])
-        if not m:
-            continue
-        sequences[m.group(1)].append(row["EventId"])
-
-for blk, events in sequences.items():
-    print(f"{blk}\t{' '.join(events)}")
-```
-
 Run on full dataset:
 ```bash
 python parse.py data/HDFS.log_structured.csv > data/sequences.tsv
@@ -142,38 +124,6 @@ wc -l data/sequences.tsv   # expected: ~575,061
 Output format: `blk_-1608999687919862906\tE22 E5 E6 E11 E9 E26`
 
 ## Step 2 — Split: join labels, write train/test files
-
-Script: `split.py`
-
-```python
-import csv
-
-labels = {}
-with open("data/anomaly_label.csv") as f:
-    for row in csv.DictReader(f):
-        labels[row["BlockId"]] = row["Label"]
-
-train_normal = open("data/train_normal.txt", "w")
-test_normal  = open("data/test_normal.txt",  "w")
-test_anomaly = open("data/test_anomaly.txt", "w")
-normal_count = 0
-
-with open("data/sequences.tsv") as f:
-    for line in f:
-        blk, tokens = line.strip().split("\t", 1)
-        label = labels.get(blk, "Normal")
-        if label == "Anomaly":
-            test_anomaly.write(tokens + "\n")
-        else:
-            normal_count += 1
-            if normal_count % 5 == 0:
-                test_normal.write(tokens + "\n")
-            else:
-                train_normal.write(tokens + "\n")
-
-train_normal.close(); test_normal.close(); test_anomaly.close()
-print(f"Normal: {normal_count}  train ~{normal_count*4//5}  test ~{normal_count//5}")
-```
 
 Run:
 ```bash
@@ -212,33 +162,6 @@ spma infer --model data/hdfs.json \
 ## Step 5 — Evaluate
 
 Script: `eval.py`
-
-```python
-import json
-
-def load(path, true_label):
-    rows = []
-    with open(path) as f:
-        for line in f:
-            r = json.loads(line)
-            rows.append({"predicted": r["is_anomaly"], "true": true_label})
-    return rows
-
-rows = load("data/results_normal.jsonl", False) + \
-       load("data/results_anomaly.jsonl", True)
-
-tp = sum(1 for r in rows if     r["predicted"] and     r["true"])
-fp = sum(1 for r in rows if     r["predicted"] and not r["true"])
-fn = sum(1 for r in rows if not r["predicted"] and     r["true"])
-tn = sum(1 for r in rows if not r["predicted"] and not r["true"])
-
-precision = tp / (tp + fp) if (tp + fp) else 0.0
-recall    = tp / (tp + fn) if (tp + fn) else 0.0
-f1 = 2*precision*recall / (precision+recall) if (precision+recall) else 0.0
-
-print(f"TP={tp}  FP={fp}  FN={fn}  TN={tn}")
-print(f"Precision={precision:.3f}  Recall={recall:.3f}  F1={f1:.3f}")
-```
 
 Run:
 ```bash
