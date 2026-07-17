@@ -29,6 +29,19 @@ F1=0.893 is the ceiling without labeled supervision — 92% of FP are caused by
 5 uncovered atoms that also drive 34% of TP (cannot be removed without labels).
 See METHOD.md for full analysis.
 
+## Note on recalibrate
+
+`spma recalibrate` refits `e_distribution` on a new corpus without retraining
+the grammar — useful for production deployments where you train on a small
+corpus for speed then refit thresholds on a full normal set.
+
+Tested here: 1k grammar recalibrated on all 446k normal training sequences,
+then swept T=0.0–0.3. Result: **no change** vs the original 1k model at any
+threshold. 99.9% of normal sequences score exactly 0.0 regardless of corpus
+size — the grammar compresses normal patterns perfectly, leaving no room for
+percentile-based threshold improvement. The feature is correct; HDFS just
+has a clean binary score distribution that doesn't benefit from it.
+
 ## Comparison with literature
 
 | Method | F1 | Supervised? |
