@@ -44,9 +44,13 @@ has a clean binary score distribution that doesn't benefit from it.
 
 ## Comparison with literature
 
-From Chen et al. 2021 (arXiv:2107.05908, Tables 2–3). Note: their setup uses
-80/20 chronological split with sliding window partitioning — not identical to
-ours (identifier-based partitioning, fixed 1k training corpus).
+From Chen et al. 2021 (arXiv:2107.05908, Tables 2–3). Setup differences:
+- Their methods use 80/20 chronological split with sliding window partitioning,
+  training on ~446k normal sequences. SPMA uses identifier-based partitioning
+  (the correct approach for HDFS block sequences) and trains on **1k sequences**.
+- Larger training corpora degrade SPMA: MDL absorbs anomaly patterns into the
+  grammar at scale (F1 drops to 0.817 at 50k, 0.486 at full 446k corpus). The
+  1k result is not a shortcut — it is the optimum.
 
 **Traditional ML, unsupervised (HDFS):**
 
