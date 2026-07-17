@@ -7,7 +7,7 @@ set -euo pipefail
 # Usage: ./level_sweep_1k.sh
 # Results saved to: data/results/level_sweep_1k/
 
-SPMA=/Users/geronimo/dev/projects/libraries/spma/target/release/spma
+SPMA=${SPMA:-spma}
 DIR="$(cd "$(dirname "$0")" && pwd)"
 MODEL="$DIR/data/model/corpus/hdfs_1000.json"
 RESULTS="$DIR/data/results/level_sweep_1k"

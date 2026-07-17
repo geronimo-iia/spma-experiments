@@ -10,7 +10,7 @@ set -euo pipefail
 # Results saved to: data/results/corpus/N/results_{normal,anomaly}_tT.jsonl
 # Eval summary:     data/results/corpus/N/summary.txt
 
-SPMA=/Users/geronimo/dev/projects/libraries/spma/target/release/spma
+SPMA=${SPMA:-spma}
 DIR="$(cd "$(dirname "$0")" && pwd)"
 MODEL_DIR="$DIR/data/model/corpus"
 RESULTS_DIR="$DIR/data/results/corpus"

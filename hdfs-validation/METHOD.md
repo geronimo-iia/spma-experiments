@@ -28,8 +28,6 @@ HDFS: 50k sequences outperforms 446k.
 | `corpus_sweep.sh` | Threshold sweep per model, skip existing results | corpus_train |
 | `corpus_report.sh` | Print best F1 per corpus size (read-only) | corpus_sweep |
 | `level_sweep_1k.sh` | Per-level threshold sweep on 1k model | corpus_train |
-| `train_full.sh` | Train on full 446k corpus | splits |
-| `threshold_full.sh` | Threshold sweep on full model | train_full |
 | `spma grammar` | Grammar summary: human-readable or `--json` for LLM pruning | model |
 | `spma recalibrate` | Replay corpus on pruned grammar, refit e_distribution | pruned model + corpus |
 
@@ -59,11 +57,9 @@ Before sweeping thresholds, understand which levels carry signal and which atoms
 are uncovered (always contribute to e_cost regardless of threshold).
 
 ```bash
-spma grammar --model data/model/hdfs_base.json
+spma grammar --model model/hdfs_1000.json
 # JSON output for LLM pruning:
-spma grammar --model data/model/hdfs_base.json --json
-# legacy Python (still works, will be removed):
-python grammar_summary.py data/model/hdfs_base.json data/model/hdfs_full.json
+spma grammar --model model/hdfs_1000.json --json
 ```
 
 Output includes:
@@ -81,16 +77,24 @@ containing these always scores e_cost > 0. On full model: 10 atoms uncovered
 
 ## Step 3 — Global threshold sweep
 
-Train once on optimal corpus size. Sweep global threshold at infer time:
+Train once on optimal corpus size. Sweep global threshold at infer time via
+`corpus_sweep.sh` (covers all sizes) or inline:
 
 ```bash
-./threshold_50k.sh   # ~5 min
+MODEL=model/hdfs_1000.json
+for T in 0.0 0.1 0.2 0.3 0.5 0.7; do
+  spma infer --model "$MODEL" --threshold $T \
+    --input data/splits/test_normal.txt --json > /tmp/norm_$T.jsonl || true
+  spma infer --model "$MODEL" --threshold $T \
+    --input data/splits/test_anomaly.txt --json > /tmp/anom_$T.jsonl || true
+  echo -n "T=$T: " && python eval.py /tmp/norm_$T.jsonl /tmp/anom_$T.jsonl
+done
 ```
 
 Find the threshold where F1 peaks. There is typically a cliff — recall drops
 sharply above a certain value. Stay below it.
 
-On HDFS: cliff at T=0.3 (recall drops 0.746 → 0.452). Use T=0.2 (F1=0.817).
+On HDFS 1k: T=0.0 is optimal (F1=0.893). On 50k: cliff at T=0.3, use T=0.2.
 
 ## Step 4 — LLM-guided grammar pruning (optional)
 
@@ -167,7 +171,7 @@ Only sweep levels identified as active in Step 2. Fix global threshold at best
 value from Step 3.
 
 ```bash
-SPMA=/Users/geronimo/dev/projects/libraries/spma/target/release/spma
+SPMA=${SPMA:-spma}
 MODEL=data/model/hdfs_base.json
 GLOBAL=0.2
 
@@ -197,7 +201,7 @@ learned order. HDFS over-compressed full model may recover F1 via level-1 gate.
 Apply best global + per-level thresholds together:
 
 ```bash
-SPMA=/Users/geronimo/dev/projects/libraries/spma/target/release/spma
+SPMA=${SPMA:-spma}
 
 $SPMA infer --model data/model/hdfs_base.json \
             --threshold $GLOBAL_BEST \

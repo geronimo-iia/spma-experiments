@@ -8,7 +8,7 @@ set -euo pipefail
 # Usage: ./corpus_train.sh
 # Models saved to: data/model/corpus/hdfs_N.json
 
-SPMA=/Users/geronimo/dev/projects/libraries/spma/target/release/spma
+SPMA=${SPMA:-spma}
 DIR="$(cd "$(dirname "$0")" && pwd)"
 TRAIN="$DIR/data/splits/train_normal.txt"
 MODEL_DIR="$DIR/data/model/corpus"
