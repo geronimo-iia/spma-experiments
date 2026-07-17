@@ -1,6 +1,6 @@
 # spma-experiments
 
-Experiments run against the `spma` crate.
+Experiments run against the [`spma`](https://github.com/geronimo-iia/spma) crate.
 
 ## Experiments
 
@@ -9,7 +9,6 @@ Experiments run against the `spma` crate.
 | `hdfs-validation/` | Anomaly detection on LogHub HDFS dataset | Active — F1=0.893 |
 | `attn-spma-minilm/` | SPMA vs MiniLM-L6-v2 semantic attention | Closed — hypothesis rejected |
 | `attn-spma-random/` | SPMA vs random embeddings (null baseline) | Closed |
-| `attn-spma-bugged/` | Original harness (two bugs, invalid results) | Artifact only |
 
 See each directory's README for results and reproduction steps.
 
@@ -24,7 +23,6 @@ reference implementation for a single attention head.
 
 | Experiment | Valid? | Mean Jaccard | Notes |
 |---|---|---|---|
-| attn-spma-bugged | No | 0.068 | Key space + cardinality bugs |
 | attn-spma-random | Yes | 0.027 | Null baseline — random embeddings |
 | attn-spma-minilm | Yes | 0.022 | MiniLM-L6-v2 — below random baseline |
 
@@ -34,7 +32,7 @@ lexical surface overlap; SPMA retrieves by highest-specificity VP constituent.
 Different retrieval objectives. The analogy would require attention weights
 trained with a syntactic objective, not semantic similarity.
 
-A syntax-trained ONNX model was not available — V11 not pursued. Closed.
+A syntax-trained ONNX model was not available. Closed.
 
 ## Implementation notes (attn-spma experiments)
 
