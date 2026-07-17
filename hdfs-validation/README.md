@@ -186,76 +186,43 @@ test_anomaly: 16838
 
 Verified 2026-07-17.
 
-## Step 2 — Train
+## Step 2 — Train (corpus sweep)
+
+Use the corpus sweep scripts — they handle all sizes, skip existing models, and
+produce structured per-size results:
 
 ```bash
-spma train \
-  --corpus data/train_normal.txt \
-  --output data/hdfs.json \
-  --beam 10
+./corpus_train.sh    # trains 1k/5k/10k/25k/50k/446k, skips existing
+                     # models → data/model/corpus/hdfs_N.json
+./corpus_sweep.sh    # threshold sweep per model, skips existing
+                     # results → data/results/corpus/N/
+./corpus_report.sh   # print best F1 per size
 ```
 
-Expected:
-```
-trained: 446579 sequences, 9 grammar levels, threshold=0.0000
+Best result: 1k model at T=0.0, F1=0.893. Canonical model path:
+`data/model/corpus/hdfs_1000.json`
+
+For a single quick train (50k, ~2 min):
+```bash
+head -50000 data/splits/train_normal.txt | \
+  spma train --corpus /dev/stdin --output /tmp/hdfs_50k.json --beam 10
 ```
 
-Training ~446k sequences takes ~26 min (optimized release build, 8 cores).
-Use 50k subset for faster iteration — grammar plateaus at 9 levels regardless:
+## Step 3 — Evaluate a model
 
 ```bash
-head -50000 data/train_normal.txt > /tmp/hdfs_50k.txt
-spma train --corpus /tmp/hdfs_50k.txt --output data/hdfs_base.json --beam 10
-# ~2 min
-```
+MODEL=data/model/corpus/hdfs_1000.json
 
-## Step 3 — Infer
+spma infer --model "$MODEL" --threshold 0.0 \
+           --input data/splits/test_normal.txt \
+           --json > /tmp/norm.jsonl || true
 
-```bash
-spma infer --model data/hdfs_base.json \
-           --input data/test_normal.txt \
-           --json > data/results_normal.jsonl || true
+spma infer --model "$MODEL" --threshold 0.0 \
+           --input data/splits/test_anomaly.txt \
+           --json > /tmp/anom.jsonl || true
 
-spma infer --model data/hdfs_base.json \
-           --input data/test_anomaly.txt \
-           --json > data/results_anomaly.jsonl || true
+python eval.py /tmp/norm.jsonl /tmp/anom.jsonl
 ```
 
 (`|| true` suppresses exit-1 from detected anomalies.)
 
-## Step 4 — Evaluate
-
-```bash
-python eval.py
-# or with explicit paths:
-python eval.py data/results_normal.jsonl data/results_anomaly.jsonl
-```
-
-## Threshold tuning
-
-`spma infer` accepts `--threshold` to override the value stored in the model.
-Train once, sweep at infer time:
-
-```bash
-./threshold_50k.sh   # fast, ~5 min, uses 50k model
-./train_full.sh      # ~26 min, trains on full 446k corpus
-./threshold_full.sh  # sweep on full model (run after train_full.sh)
-```
-
-Each script skips training if the model already exists.
-
-Cliff at T=0.3: recall drops from 0.746 → 0.452. Use T=0.2.
-
-## Pipeline verification (2k sample)
-
-The 2k sample (`HDFS_2k.log_structured.csv`) is available without download but
-has sequences of length 1 — useless for training. Use `Event_traces.csv` only.
-
-To confirm `parse.py` still works (legacy, not needed for this pipeline):
-
-```bash
-curl -L https://raw.githubusercontent.com/logpai/loghub/master/HDFS/HDFS_2k.log_structured.csv \
-     -o data/HDFS_2k.log_structured.csv
-python parse.py data/HDFS_2k.log_structured.csv > data/sequences_2k.tsv
-wc -l data/sequences_2k.tsv   # expected: 1994
-```

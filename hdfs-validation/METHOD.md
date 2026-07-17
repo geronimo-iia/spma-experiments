@@ -27,12 +27,14 @@ HDFS: 50k sequences outperforms 446k.
 | `corpus_train.sh` | Train one model per corpus size, skip existing | splits |
 | `corpus_sweep.sh` | Threshold sweep per model, skip existing results | corpus_train |
 | `corpus_report.sh` | Print best F1 per corpus size (read-only) | corpus_sweep |
-| `threshold_50k.sh` | Train 50k model + full threshold sweep | splits |
+| `level_sweep_1k.sh` | Per-level threshold sweep on 1k model | corpus_train |
 | `train_full.sh` | Train on full 446k corpus | splits |
 | `threshold_full.sh` | Threshold sweep on full model | train_full |
-| `grammar_summary.py` | Legacy Python grammar analysis (superseded by `spma grammar`) | model |
 | `spma grammar` | Grammar summary: human-readable or `--json` for LLM pruning | model |
 | `spma recalibrate` | Replay corpus on pruned grammar, refit e_distribution | pruned model + corpus |
+
+Archived (no longer used): `archive/grammar_summary.py` (superseded by `spma grammar`),
+`archive/level_sweep_50k.sh` (stopped — OR logic means level gate adds no precision value).
 
 ## Step 1 — Corpus size exploration
 
