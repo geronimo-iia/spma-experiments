@@ -42,11 +42,34 @@ size — the grammar compresses normal patterns perfectly, leaving no room for
 percentile-based threshold improvement. The feature is correct; HDFS just
 has a clean binary score distribution that doesn't benefit from it.
 
-## Result
+## Comparison with literature
 
-F1=0.893, unsupervised, no feature engineering, no embeddings. For comparison
-with published methods on this benchmark see Chen et al. 2021
-(arXiv:2107.05908) and the LogPAI benchmark suite.
+From Chen et al. 2021 (arXiv:2107.05908, Tables 2–3). Note: their setup uses
+80/20 chronological split with sliding window partitioning — not identical to
+ours (identifier-based partitioning, fixed 1k training corpus).
+
+**Traditional ML, unsupervised (HDFS):**
+
+| Method | Precision | Recall | F1 |
+|---|---|---|---|
+| Invariant Mining | 0.895 | 1.0 | 0.944 |
+| Log Clustering | 1.0 | 0.728 | 0.843 |
+| PCA | 0.971 | 0.628 | 0.763 |
+| **SPMA 1k (T=0.0)** | **0.973** | **0.825** | **0.893** |
+
+**DL-based, unsupervised (HDFS, without log semantics):**
+
+| Method | Precision | Recall | F1 |
+|---|---|---|---|
+| LSTM (DeepLog) | 0.96 | 0.965 | 0.944 |
+| Transformer | 0.946 | 0.86 | 0.905 |
+| Autoencoder | 0.881 | 0.892 | 0.881 |
+| **SPMA 1k (T=0.0)** | **0.973** | **0.825** | **0.893** |
+
+SPMA beats PCA (0.763) and Log Clustering (0.843). Below Invariant Mining
+(0.944) and DeepLog (0.944), which use numerical event-count features.
+SPMA uses symbolic sequence structure only — no feature vectors, no
+training on anomaly labels, no embeddings.
 
 ## Quickstart
 
