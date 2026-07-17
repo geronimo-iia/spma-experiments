@@ -70,8 +70,10 @@ From Chen et al. 2021 (arXiv:2107.05908, Tables 2–3). Setup differences:
 | Autoencoder | 0.881 | 0.892 | 0.881 |
 | **SPMA 1k (T=0.0)** | **0.973** | **0.825** | **0.893** |
 
-SPMA beats PCA (0.763) and Log Clustering (0.843). Below Invariant Mining
-(0.944) and DeepLog (0.944), which use numerical event-count features.
+**3rd among unsupervised methods benchmarked in Chen et al. 2021**, trained on
+1k sequences vs ~446k for the others. SPMA beats PCA (0.763) and Log
+Clustering (0.843). Below Invariant Mining (0.944) and DeepLog (0.944), which
+use numerical event-count features and train on the full corpus.
 SPMA uses symbolic sequence structure only — no feature vectors, no
 training on anomaly labels, no embeddings.
 
