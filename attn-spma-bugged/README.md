@@ -1,18 +1,11 @@
-# V8 — Original harness (invalid)
+# attn-spma-bugged — Invalid baseline (do not use)
 
-## Purpose
+**Superseded by attn-spma-random.** Preserved as artifact only — results are meaningless.
 
-First attempt at comparing SPMA beam search retrieval with scaled dot-product attention.
-Hypothesis: both sides retrieve the same training sentences for a given query.
+## Hypothesis
 
-Contains two bugs that make the comparison meaningless — preserved as an artifact.
-
-## Run
-
-```bash
-cargo run --release
-# outputs v8_results.csv
-```
+SPMA beam search and scaled dot-product attention retrieve the same training
+sentences for a given query. Measured via Jaccard similarity.
 
 ## Result
 
@@ -20,15 +13,20 @@ cargo run --release
 Mean Jaccard: 0.068  Std: 0.112
 ```
 
-## Bugs
+## Why invalid
 
-**V8a — key space mismatch**: SPMA returns grammar pattern IDs; attention returns sentence indices.
-Jaccard over different-typed sets is noise. Inflated Jaccard (0.068) is an artifact.
+**Bug 1 — key space mismatch**: SPMA returns grammar pattern IDs; attention
+returns sentence indices. Jaccard over different-typed sets is noise.
 
-**V8b — cardinality mismatch**: After fixing key space, SPMA `old_pattern_indices` spans all beam
-alignments (~120 indices); attention returns exactly 5. Jaccard ≈ 0.04 by construction — a set
-of 5 cannot overlap much with a set of 120.
+**Bug 2 — cardinality mismatch**: SPMA `old_pattern_indices` spans all beam
+alignments (~120 indices); attention returns exactly 5. A set of 5 cannot
+overlap meaningfully with a set of 120 — Jaccard ≈ 0.04 by construction.
 
-## Conclusion
+Both bugs fixed in attn-spma-random.
 
-Invalid experiment. Both bugs fixed in V9.
+## Reproduce
+
+```bash
+cargo run --release
+# outputs v8_results.csv
+```
