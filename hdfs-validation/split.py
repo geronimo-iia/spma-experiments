@@ -1,31 +1,38 @@
+"""
+Read preprocessed/Event_traces.csv (already grouped by block, labels embedded).
+No parse step or anomaly_label.csv join needed.
+
+Output:
+  data/train_normal.txt  — 80% of Success sequences, one per line
+  data/test_normal.txt   — 20% of Success sequences
+  data/test_anomaly.txt  — all Fail sequences
+"""
 import csv
+import re
 
-labels = {}
-with open("data/anomaly_label.csv") as f:
-    for row in csv.DictReader(f):
-        labels[row["BlockId"]] = row["Label"]
+BLK_RE = re.compile(r"E\d+")
 
-train_normal = open("data/train_normal.txt", "w")
-test_normal  = open("data/test_normal.txt",  "w")
-test_anomaly = open("data/test_anomaly.txt", "w")
+train_normal, test_normal, test_anomaly = [], [], []
 normal_count = 0
 
-with open("data/sequences.tsv") as f:
-    for line in f:
-        parts = line.strip().split("\t", 1)
-        if len(parts) < 2:
+with open("data/preprocessed/Event_traces.csv", newline="") as f:
+    for row in csv.DictReader(f):
+        events = BLK_RE.findall(row["Features"])
+        if not events:
             continue
-        blk, tokens = parts
-        label = labels.get(blk, "Normal")
-        if label == "Anomaly":
-            test_anomaly.write(tokens + "\n")
+        if row["Label"] == "Fail":
+            test_anomaly.append(" ".join(events))
         else:
             normal_count += 1
             if normal_count % 5 == 0:
-                test_normal.write(tokens + "\n")
+                test_normal.append(" ".join(events))
             else:
-                train_normal.write(tokens + "\n")
+                train_normal.append(" ".join(events))
 
-train_normal.close(); test_normal.close(); test_anomaly.close()
-print(f"Normal: {normal_count}  train ~{normal_count*4//5}  test ~{normal_count//5}")
-print(f"Anomaly: {sum(1 for l in labels.values() if l == 'Anomaly')}")
+open("data/train_normal.txt", "w").write("\n".join(train_normal) + "\n")
+open("data/test_normal.txt",  "w").write("\n".join(test_normal)  + "\n")
+open("data/test_anomaly.txt", "w").write("\n".join(test_anomaly) + "\n")
+
+print(f"train_normal: {len(train_normal)}")
+print(f"test_normal:  {len(test_normal)}")
+print(f"test_anomaly: {len(test_anomaly)}")

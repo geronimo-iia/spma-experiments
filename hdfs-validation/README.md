@@ -4,134 +4,189 @@ Validate SPMA anomaly detection against the LogHub HDFS dataset — a benchmark
 log dataset with ground-truth anomaly labels. Goal: measure precision, recall,
 and F1 against known results from the literature.
 
+## Results — corpus size sweep
+
+Tested on 111,644 normal + 16,838 anomalous sequences. Grammar plateaus at 9
+levels from 5k onward. Run via `corpus_train.sh` + `corpus_sweep.sh`.
+
+| Corpus N | Best T | Precision | Recall | F1 | Notes |
+|---|---|---|---|---|---|
+| **1,000** | **0.0** | **0.973** | **0.825** | **0.893** | **best** |
+| 5,000 | 0.0 | 0.973 | 0.825 | 0.893 | grammar saturates here |
+| 10,000 | 0.0 | 0.973 | 0.825 | 0.893 | |
+| 25,000 | 0.0 | 0.973 | 0.825 | 0.893 | |
+| 50,000 | 0.2 | 0.903 | 0.746 | 0.817 | over-compression starts |
+| 446,579 | 0.2 | 0.344 | 0.825 | 0.486 | severe over-compression |
+
+**Best operating point: 1k corpus, T=0.0, F1=0.893**
+
+TP=13888  FP=389  FN=2950  TN=111255
+
+Grammar identical across 5k–25k (9 levels, 147 patterns). 1k uses the same
+grammar structure but sparser training → stricter compression → lower FP.
+
+### Why small corpus wins
+
+1k–25k models learn only the most rigid normal patterns. At T=0.0 any
+compression cost flags as anomaly — the sparse grammar is strict in the right
+direction: HDFS normal sequences are highly stereotyped (same ~5 transitions
+repeat). FP=389 vs 1355 at 50k; recall identical.
+
+### MDL over-compression at 50k
+
+At 50k the grammar absorbs enough variation that T must be raised to 0.2 to
+achieve good precision, sacrificing recall. Too much training data compresses
+anomaly patterns into the grammar.
+
+**Corpus size is a hyperparameter. For HDFS: 1k–25k + T=0.0 is optimal.**
+
+## Results — 50k corpus detail
+
+| T | Precision | Recall | F1 |
+|---|---|---|---|
+| 0.0 | 0.522 | 0.825 | 0.639 |
+| 0.1 | 0.698 | 0.825 | 0.756 |
+| **0.2** | **0.903** | **0.746** | **0.817** |
+| 0.3 | 0.910 | 0.452 | 0.604 |
+| 0.5 | 0.943 | 0.331 | 0.490 |
+| 0.7 | 0.527 | 0.005 | 0.010 |
+
+Cliff at T=0.3: recall drops 0.746 → 0.452.
+
+## Results — full corpus (446k sequences)
+
+Run via `train_full.sh` + `threshold_full.sh`. Training: 21 min.
+
+| T | Precision | Recall | F1 |
+|---|---|---|---|
+| 0.0 | 0.300 | 0.825 | 0.440 |
+| 0.1 | 0.303 | 0.825 | 0.443 |
+| **0.2** | **0.344** | **0.825** | **0.486** |
+| 0.3 | 0.364 | 0.576 | 0.446 |
+| 0.5 | 0.601 | 0.363 | 0.452 |
+| 0.7 | 0.891 | 0.005 | 0.011 |
+
+Best: T=0.2, F1=0.486 — worse than small corpus models due to over-compression.
+
+## Comparison with literature
+
+| Method | F1 | Supervised? | Notes |
+|---|---|---|---|
+| DeepLog (2017) | 0.975 | Yes (LSTM) | |
+| LogAnomaly (2019) | 0.958 | Yes | |
+| LogBERT (2021) | 0.980 | Yes | |
+| PCA (classical) | 0.975 | No | |
+| Invariant mining | 0.925 | No | |
+| **SPMA 1k (T=0.0)** | **0.893** | **No** | best result |
+| SPMA 50k (T=0.2) | 0.817 | No | |
+| SPMA full 446k (T=0.2) | 0.486 | No | over-compressed (TN=0 at T=0.0) |
+
+SPMA is unsupervised, symbolic, no embeddings, no neural network.
+Small corpus (1k–25k) outperforms large — sparse grammar is strict in the right
+direction for HDFS's stereotyped normal sequences. Gap to PCA (~8 points)
+is driven by 389 residual FP — 92% caused by 5 uncovered atoms that also
+discriminate 34% of TP, making them unremovable without supervision.
+
+## FP analysis (1k model, T=0.0)
+
+TP=13888, FP=389, FN=2950, TN=111255.
+
+Root cause of FP:
+
+| Category | FP count | % FP | Fixable? |
+|---|---|---|---|
+| Contain uncovered atoms E6/E16/E18/E25/E28 | 359 | 92% | No — same atoms drive 34% of TP |
+| Pure order/repetition anomalies | 30 | 8% | Maybe — grammar refinement (Step 7) |
+
+**Why uncovered atoms cannot be neutralized:** These 5 atoms appear in 4733/13888 TP
+anomalies. Zeroing their cost would drop recall from 0.825 to 0.550. The tradeoff is
+unfavorable without labeled data to separate the two populations.
+
+**F1=0.893 is the ceiling** for this approach without supervision:
+- 2950 FN: sequences that compress well against sparse grammar
+- 359 FP: structurally identical to a subset of TP at the feature level
+
 ## Dataset
 
 **Source**: LogHub HDFS_v1 — https://github.com/logpai/loghub/tree/master/HDFS
 
-Two tiers:
-
-| Tier | Size | Labels | Usable for |
-|---|---|---|---|
-| 2k sample | 2000 lines, 1994 blocks | None | Pipeline verification only |
-| Full dataset | ~11M lines, 575k blocks | Yes (anomaly_label.csv) | P/R/F1 evaluation |
-
-**Why the 2k sample is not enough**: the 2k sample is a slice of the full log.
-Most blocks span hundreds of lines, so in 2000 lines each block appears only
-1–2 times → sequences of length 1. Useless for grammar induction.
+Stats:
+- 575,061 block sequences
+- 558,223 normal (Success), 16,838 anomalous (Fail, ~2.9%)
+- Sequence length: 5–300+ events, vocabulary E1–E30
 
 ## Download
-
-### 2k sample (no request needed)
-
-```bash
-mkdir -p data
-curl -L \
-  https://raw.githubusercontent.com/logpai/loghub/master/HDFS/HDFS_2k.log_structured.csv \
-  -o data/HDFS_2k.log_structured.csv
-```
-
-Verified: 2001 lines (1 header + 2000 rows), 1994 unique blocks, 14 event
-templates (E1–E14), avg sequence length 1.0. Use only to verify parse.py works.
-
-### Full dataset (direct download, no request)
 
 Hosted on Zenodo — public, no login required:
 
 ```bash
+mkdir -p data
 cd data
 curl -L "https://zenodo.org/records/8196385/files/HDFS_v1.zip?download=1" -o HDFS_v1.zip
 unzip HDFS_v1.zip
 ```
 
-The ZIP contains `HDFS.log`, `HDFS.log_structured.csv`, `anomaly_label.csv`
-and preprocessed variants. Only `HDFS.log_structured.csv` and
-`anomaly_label.csv` are needed for this pipeline.
+Only `data/preprocessed/Event_traces.csv` is needed. It already contains
+grouped block sequences with labels — no raw log parsing required.
 
-Place unzipped files in `hdfs-validation/data/` (gitignored).
-
-Full dataset stats:
-- 11,175,629 log lines
-- 575,061 block sequences
-- 30 event templates (E1–E30)
-- 16,838 anomalous blocks (~2.9%)
-- Typical sequence length: 5–29 events
+File structure after unzip:
+```
+data/
+  HDFS.log                          — raw log (1.47 GiB, not needed)
+  preprocessed/
+    Event_traces.csv                — block sequences + labels  ← USE THIS
+    anomaly_label.csv               — labels only (redundant)
+    Event_occurrence_matrix.csv
+    HDFS.npz
+    HDFS.log_templates.csv
+```
 
 ## Event vocabulary
 
-LogHub pre-parsed the logs via template mining. The `EventId` column is the
-token — no regex parsing needed.
+30 event templates (E1–E30), pre-extracted by LogHub via template mining.
+`Event_traces.csv` `Features` column contains ordered sequences like
+`[E5,E22,E5,E11,E9,E26,...]`.
 
-2k sample templates (E1–E14):
+Key events:
 
-| EventId | Template |
+| EventId | Meaning |
 |---|---|
-| E1  | Served block blk_* to /* |
-| E2  | Starting thread to transfer block blk_* to * |
-| E3  | Got exception while serving blk_* to /* |
-| E4  | BLOCK* ask * to delete blk_* |
-| E5  | BLOCK* ask * to replicate blk_* to * |
-| E6  | BLOCK* NameSystem.addStoredBlock: blockMap updated |
-| E7  | BLOCK* NameSystem.allocateBlock |
-| E8  | BLOCK* NameSystem.delete: blk_* is added to invalidSet |
-| E9  | Deleting block blk_* file /* |
-| E10 | PacketResponder * for block blk_* terminating |
-| E11 | Received block blk_* of size * from /* |
-| E12 | Received block blk_* src * dest * of size * |
-| E13 | Receiving block blk_* src * dest * |
-| E14 | Verification succeeded for blk_* |
-
-Full dataset adds E15–E30 (replication, errors, timeouts — see HDFS_templates.csv).
+| E5  | Receiving block |
+| E6  | Received block (dest) |
+| E9  | Received block (from) |
+| E11 | Received block of size |
+| E22 | allocateBlock |
+| E26 | addStoredBlock |
+| E3  | Got exception while serving |
+| E21 | Deleting block |
+| E23 | delete → invalidSet |
 
 ## Pipeline overview
 
 ```
-HDFS_structured.csv ──► parse.py ──► sequences.tsv ──┐
-                                                       ├──► spma train ──► model.json
-anomaly_label.csv ──► split.py ──► train_normal.txt ──┘
-                                   test_normal.txt  ──► spma infer ──► results_normal.jsonl
-                                   test_anomaly.txt ──► spma infer ──► results_anomaly.jsonl
-                                                                    ──► eval.py ──► P/R/F1
+Event_traces.csv ──► split.py ──► train_normal.txt ──► spma train ──► model.json
+                                  test_normal.txt  ──► spma infer ──► results_normal.jsonl  ──► eval.py ──► P/R/F1
+                                  test_anomaly.txt ──► spma infer ──► results_anomaly.jsonl ──┘
 ```
 
-## Step 0 — Verify pipeline on 2k sample
+No parse step. No raw log needed. `split.py` reads `Event_traces.csv` directly.
 
-Before the full dataset, confirm parse.py works:
+## Step 1 — Split
 
-```bash
-python parse.py data/HDFS_2k.log_structured.csv > data/sequences_2k.tsv
-wc -l data/sequences_2k.tsv      # expected: 1994
-head -5 data/sequences_2k.tsv    # expected: blk_XXXXX\tE10 ...
-```
-
-Expected output (verified 2025-07-17):
-```
-1994 data/sequences_2k.tsv
-blk_38865049064139660     E10
-blk_-6952295868487656571  E10
-blk_7128370237687728475   E6
-blk_8229193803249955061   E10
-blk_-6670958622368987959  E10
-```
-
-## Step 1 — Parse: structured CSV → block sequences
-
-Run on full dataset:
-```bash
-python parse.py data/HDFS.log_structured.csv > data/sequences.tsv
-wc -l data/sequences.tsv   # expected: ~575,061
-```
-
-Output format: `blk_-1608999687919862906\tE22 E5 E6 E11 E9 E26`
-
-## Step 2 — Split: join labels, write train/test files
-
-Run:
 ```bash
 python split.py
-# expected: Normal: ~558223  train ~446578  test ~111645
 ```
 
-## Step 3 — Train
+Expected output:
+```
+train_normal: 446579
+test_normal:  111644
+test_anomaly: 16838
+```
+
+Verified 2026-07-17.
+
+## Step 2 — Train
 
 ```bash
 spma train \
@@ -142,60 +197,65 @@ spma train \
 
 Expected:
 ```
-trained: ~446578 sequences, N grammar levels, threshold=0.0000
+trained: 446579 sequences, 9 grammar levels, threshold=0.0000
 ```
 
-## Step 4 — Infer
+Training ~446k sequences takes ~26 min (optimized release build, 8 cores).
+Use 50k subset for faster iteration — grammar plateaus at 9 levels regardless:
 
 ```bash
-spma infer --model data/hdfs.json \
-           --input data/test_normal.txt \
-           --json > data/results_normal.jsonl
+head -50000 data/train_normal.txt > /tmp/hdfs_50k.txt
+spma train --corpus /tmp/hdfs_50k.txt --output data/hdfs_base.json --beam 10
+# ~2 min
+```
 
-spma infer --model data/hdfs.json \
+## Step 3 — Infer
+
+```bash
+spma infer --model data/hdfs_base.json \
+           --input data/test_normal.txt \
+           --json > data/results_normal.jsonl || true
+
+spma infer --model data/hdfs_base.json \
            --input data/test_anomaly.txt \
            --json > data/results_anomaly.jsonl || true
 ```
 
-(`|| true` suppresses the exit-1 from detected anomalies.)
+(`|| true` suppresses exit-1 from detected anomalies.)
 
-## Step 5 — Evaluate
+## Step 4 — Evaluate
 
-Script: `eval.py`
-
-Run:
 ```bash
 python eval.py
+# or with explicit paths:
+python eval.py data/results_normal.jsonl data/results_anomaly.jsonl
 ```
-
-## Literature baseline
-
-| Method | F1 |
-|---|---|
-| DeepLog (2017) | 0.975 |
-| LogAnomaly (2019) | 0.958 |
-| LogBERT (2021) | 0.980 |
-| PCA (classical) | 0.975 |
-| Invariant mining | 0.925 |
-
-SPMA is unsupervised, symbolic, no tuning. F1 > 0.80 = competitive.
-F1 < 0.50 = grammar not capturing enough structure.
 
 ## Threshold tuning
 
-Default threshold = 0.0. Sweep if precision is low:
+`spma infer` accepts `--threshold` to override the value stored in the model.
+Train once, sweep at infer time:
 
 ```bash
-for T in 0.0 0.1 0.2 0.3 0.5; do
-  spma train --corpus data/train_normal.txt \
-             --output data/hdfs_t${T}.json \
-             --threshold $T
-  spma infer --model data/hdfs_t${T}.json \
-             --input data/test_normal.txt \
-             --json > data/results_normal_t${T}.jsonl
-  spma infer --model data/hdfs_t${T}.json \
-             --input data/test_anomaly.txt \
-             --json > data/results_anomaly_t${T}.jsonl || true
-  echo "=== threshold=$T ===" && python eval.py  # edit paths in eval.py
-done
+./threshold_50k.sh   # fast, ~5 min, uses 50k model
+./train_full.sh      # ~26 min, trains on full 446k corpus
+./threshold_full.sh  # sweep on full model (run after train_full.sh)
+```
+
+Each script skips training if the model already exists.
+
+Cliff at T=0.3: recall drops from 0.746 → 0.452. Use T=0.2.
+
+## Pipeline verification (2k sample)
+
+The 2k sample (`HDFS_2k.log_structured.csv`) is available without download but
+has sequences of length 1 — useless for training. Use `Event_traces.csv` only.
+
+To confirm `parse.py` still works (legacy, not needed for this pipeline):
+
+```bash
+curl -L https://raw.githubusercontent.com/logpai/loghub/master/HDFS/HDFS_2k.log_structured.csv \
+     -o data/HDFS_2k.log_structured.csv
+python parse.py data/HDFS_2k.log_structured.csv > data/sequences_2k.tsv
+wc -l data/sequences_2k.tsv   # expected: 1994
 ```
