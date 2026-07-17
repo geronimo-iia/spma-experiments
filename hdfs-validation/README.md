@@ -85,9 +85,16 @@ spma grammar --model model/hdfs_1000.json
 
 To reproduce fully or run experiments: see **METHOD.md**.
 
-## Dataset
+## Dataset and attribution
 
 **Source**: LogHub HDFS_v1 — https://github.com/logpai/loghub/tree/master/HDFS
+
+Dataset is free for research and academic use. Any use or distribution must
+cite the LogHub repository and the LogHub paper:
+
+> Jieming Zhu, Shilin He, Pinjia He, Jinyang Liu, Michael R. Lyu.
+> "Loghub: A Large Collection of System Log Datasets for AI-driven Log Analytics."
+> IEEE ISSRE, 2023. https://github.com/logpai/loghub
 
 - 575,061 block sequences; 558,223 normal, 16,838 anomalous (~2.9%)
 - Sequence length: 5–300+ events, vocabulary E1–E30
