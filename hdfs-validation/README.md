@@ -55,6 +55,10 @@ has a clean binary score distribution that doesn't benefit from it.
 | SPMA 50k (T=0.2) | 0.817 | No |
 | SPMA full 446k (T=0.2) | 0.486 | No |
 
+F1=0.893 unsupervised, no feature engineering, no embeddings. Competitive with
+invariant mining (0.925) and within 8 points of PCA (0.975). This table is not
+a comprehensive survey — other unsupervised methods on HDFS may exist.
+
 ## Quickstart
 
 Best model committed at `model/hdfs_1000.json` — no dataset download needed:
