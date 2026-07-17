@@ -55,7 +55,7 @@ Cliff at T=0.3: recall drops 0.746 → 0.452.
 
 ## Results — full corpus (446k sequences)
 
-Run via `train_full.sh` + `threshold_full.sh`. Training: 21 min.
+Run via `corpus_train.sh` + `corpus_sweep.sh` (N=446579). Training: 21 min.
 
 | T | Precision | Recall | F1 |
 |---|---|---|---|
@@ -96,7 +96,7 @@ Root cause of FP:
 | Category | FP count | % FP | Fixable? |
 |---|---|---|---|
 | Contain uncovered atoms E6/E16/E18/E25/E28 | 359 | 92% | No — same atoms drive 34% of TP |
-| Pure order/repetition anomalies | 30 | 8% | Maybe — grammar refinement (Step 7) |
+| Pure order/repetition anomalies | 30 | 8% | Maybe — grammar refinement (Step 6 in METHOD.md) |
 
 **Why uncovered atoms cannot be neutralized:** These 5 atoms appear in 4733/13888 TP
 anomalies. Zeroing their cost would drop recall from 0.825 to 0.550. The tradeoff is
