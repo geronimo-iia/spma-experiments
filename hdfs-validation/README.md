@@ -42,22 +42,11 @@ size — the grammar compresses normal patterns perfectly, leaving no room for
 percentile-based threshold improvement. The feature is correct; HDFS just
 has a clean binary score distribution that doesn't benefit from it.
 
-## Comparison with literature
+## Result
 
-| Method | F1 | Supervised? |
-|---|---|---|
-| LogBERT (2021) | 0.980 | Yes |
-| DeepLog (2017) | 0.975 | Yes |
-| PCA (classical) | 0.975 | No |
-| LogAnomaly (2019) | 0.958 | Yes |
-| Invariant mining | 0.925 | No |
-| **SPMA 1k (T=0.0)** | **0.893** | **No** |
-| SPMA 50k (T=0.2) | 0.817 | No |
-| SPMA full 446k (T=0.2) | 0.486 | No |
-
-F1=0.893 unsupervised, no feature engineering, no embeddings. Competitive with
-invariant mining (0.925) and within 8 points of PCA (0.975). This table is not
-a comprehensive survey — other unsupervised methods on HDFS may exist.
+F1=0.893, unsupervised, no feature engineering, no embeddings. For comparison
+with published methods on this benchmark see Chen et al. 2021
+(arXiv:2107.05908) and the LogPAI benchmark suite.
 
 ## Quickstart
 
