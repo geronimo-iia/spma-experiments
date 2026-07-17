@@ -199,8 +199,8 @@ produce structured per-size results:
 ./corpus_report.sh   # print best F1 per size
 ```
 
-Best result: 1k model at T=0.0, F1=0.893. Canonical model path:
-`data/model/corpus/hdfs_1000.json`
+Best result: 1k model at T=0.0, F1=0.893. Canonical model committed at
+`model/hdfs_1000.json` — usable without running the full pipeline.
 
 For a single quick train (50k, ~2 min):
 ```bash
@@ -211,7 +211,7 @@ head -50000 data/splits/train_normal.txt | \
 ## Step 3 — Evaluate a model
 
 ```bash
-MODEL=data/model/corpus/hdfs_1000.json
+MODEL=model/hdfs_1000.json   # committed best model, no download needed
 
 spma infer --model "$MODEL" --threshold 0.0 \
            --input data/splits/test_normal.txt \
