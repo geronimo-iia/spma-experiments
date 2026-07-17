@@ -3,11 +3,12 @@ Read preprocessed/Event_traces.csv (already grouped by block, labels embedded).
 No parse step or anomaly_label.csv join needed.
 
 Output:
-  data/train_normal.txt  — 80% of Success sequences, one per line
-  data/test_normal.txt   — 20% of Success sequences
-  data/test_anomaly.txt  — all Fail sequences
+  data/splits/train_normal.txt  — 80% of Success sequences, one per line
+  data/splits/test_normal.txt   — 20% of Success sequences
+  data/splits/test_anomaly.txt  — all Fail sequences
 """
 import csv
+import os
 import re
 
 BLK_RE = re.compile(r"E\d+")
@@ -29,9 +30,10 @@ with open("data/preprocessed/Event_traces.csv", newline="") as f:
             else:
                 train_normal.append(" ".join(events))
 
-open("data/train_normal.txt", "w").write("\n".join(train_normal) + "\n")
-open("data/test_normal.txt",  "w").write("\n".join(test_normal)  + "\n")
-open("data/test_anomaly.txt", "w").write("\n".join(test_anomaly) + "\n")
+os.makedirs("data/splits", exist_ok=True)
+open("data/splits/train_normal.txt", "w").write("\n".join(train_normal) + "\n")
+open("data/splits/test_normal.txt",  "w").write("\n".join(test_normal)  + "\n")
+open("data/splits/test_anomaly.txt", "w").write("\n".join(test_anomaly) + "\n")
 
 print(f"train_normal: {len(train_normal)}")
 print(f"test_normal:  {len(test_normal)}")
